@@ -1,12 +1,20 @@
 const queue = []; // 任务队列
-let currentTask; // 当前任务
+let currentTick; // 当前Tick
+let currentTaskPromise; // 当前task
 let isDraining = false; // 是否正在清空队列
 let isPending = false; // 是否正在准备清空队列微任务
 
+function nextTick() {
+    return currentTick || Promise.resolve();
+}
+
 // impl
-function LazyMan(name) {
+function LazyMan(name, callback) {
     const task = (resolve) => {
         console.log(`this is ${name}`);
+        if (typeof callback === 'function') {
+            callback(name);
+        }
         resolve();
     };
     queueTask(task);
@@ -22,31 +30,38 @@ async function queueTask(task, type = 0) {
 
     if (!isDraining && !isPending) {
         isPending = true;
-        Promise.resolve().then(async () => {
+        currentTick = Promise.resolve().then(async () => {
             isPending = false;
             isDraining = true;
             for (let i = 0; i < queue.length; i++) {
-                await new Promise((resolve) => {
+                await (currentTaskPromise = new Promise((resolve) => {
                     queue[i](resolve);
-                });
+                }));
             }
+            isDraining = false;
         });
     }
 }
 
-LazyMan.eat = (name) => {
+LazyMan.eat = (name, callback) => {
     const task = (resolve) => {
         console.log(`eat ${name}`);
+        if (typeof callback === 'function') {
+            callback(name);
+        }
         resolve();
     };
     queueTask(task);
     return LazyMan;
 }
 
-LazyMan.sleep = (duration) => {
+LazyMan.sleep = (duration, callback) => {
     const task = (resolve) => {
         setTimeout(() => {
             console.log(`等待${duration}s`);
+            if (typeof callback === 'function') {
+                callback(duration);
+            }
             resolve();
         }, 3000);
     };
@@ -54,10 +69,13 @@ LazyMan.sleep = (duration) => {
     return LazyMan;
 }
 
-LazyMan.sleepFirst = (duration) => {
+LazyMan.sleepFirst = (duration, callback) => {
     const task = (resolve) => {
         setTimeout(() => {
             console.log(`等待 ${duration} s...`);
+            if (typeof callback === 'function') {
+                callback(duration);
+            }
             resolve();
         }, 3000);
     };
@@ -66,5 +84,6 @@ LazyMan.sleepFirst = (duration) => {
 }
 
 module.exports = {
-    LazyMan
+    LazyMan,
+    nextTick
 };

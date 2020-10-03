@@ -1,9 +1,9 @@
 
 function convertHTMLToVnode(xmlString) {
-  //实现过程
   const parseContext = {
-    startReg: /<([a-zA-Z]+)(\s+[a-zA-Z]+="[^<>]*")*>/i,
+    startReg: /<([a-zA-Z]+)([\t\r\n\f\s]+[a-zA-Z]+="[^<>]*")*[\t\r\n\f\s]*>/i,
     endReg: /<\/([a-zA-Z]+)>/i,
+    gapReg: /^[\t\r\n\f\s]*/i,
     originalSource: xmlString,
     source: xmlString,
     currentPosition: 0
@@ -28,15 +28,29 @@ function advanceTemplate(number, parseContext) {
   parseContext.source = source.slice(number);
 }
 
+// 解析模版间隙 e.g.: \s\r\f\n\t
+function parseGap(parseContext) {
+  const { 
+    source,
+    gapReg 
+  } = parseContext;
+  const match = gapReg.exec(source);
+  let len;
+  if (match && (len = match[0].length)) {
+    advanceTemplate(len, parseContext);
+  }
+}
+
 // 解析标签属性
 function parseProps(propsStr) {
   const props = Object.create(null);
   if (!propsStr) {
     return props;
   }
-  const propsArr = propsStr.trim().split(/\s+/);
+  const propsArr = propsStr.trim().split(/[\t\r\n\f\s]+/);
   for (let i = 0; i < propsArr.length; i++) {
-    const [name, value] = propsArr[i].split('=');
+    let [name, value] = propsArr[i].split('=');
+    value = /^"(.*)"$/i.exec(value)[1];
     props[name] = value;
   }
   return props;
@@ -81,6 +95,7 @@ function parseElement(parseContext, nodeStack) {
   const tag = matchStart[1];
   const props = parseProps(matchStart[2]);
   advanceTemplate(matchStart[0].length, parseContext);
+  parseGap(parseContext);
   
   // parse children
   const currentVNode = {
@@ -89,12 +104,14 @@ function parseElement(parseContext, nodeStack) {
   };
   nodeStack.push(currentVNode);
   const children = parseChildren(parseContext, nodeStack);
+  parseGap(parseContext);
   currentVNode.children = children;
   nodeStack.pop();
 
   // parse end tag
   const matchEnd = endReg.exec(source);
   advanceTemplate(matchEnd[0].length, parseContext);
+  parseGap(parseContext);
 
   return currentVNode;
 }
@@ -110,4 +127,4 @@ function normalizeRootNode(rootNode) {
   return children;
 }
 
-console.log(JSON.stringify(convertHTMLToVnode('<div class="div_cls"><span class="span_cls"></span></div>')));
+module.exports = { convertHTMLToVnode };
