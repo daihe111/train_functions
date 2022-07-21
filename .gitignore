@@ -1,0 +1,14 @@
+.idea
+logs
+*.log
+npm-debug.log*
+node_modules
+.DS_Store
+node_modules/
+.vscode/
+/output
+/dist
+/ajx_modules
+/log
+.lintResFile.txt
+src/hmr
